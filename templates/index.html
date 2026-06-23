@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VulnProbe — Vulnerability Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ─── TOKENS ─────────────────────────────────────────── */
+:root {
+  --bg:          #F7F8FA;
+  --surface:     #FFFFFF;
+  --surface-2:   #F0F2F5;
+  --border:      #E2E5EB;
+  --border-2:    #CDD2DB;
+  --text:        #111827;
+  --text-2:      #4B5563;
+  --text-3:      #9CA3AF;
+  --accent:      #2563EB;
+  --accent-light:#EFF6FF;
+  --accent-hover:#1D4ED8;
+
+  --crit:        #DC2626;
+  --crit-bg:     #FEF2F2;
+  --crit-border: #FECACA;
+  --high:        #EA580C;
+  --high-bg:     #FFF7ED;
+  --high-border: #FED7AA;
+  --med:         #D97706;
+  --med-bg:      #FFFBEB;
+  --med-border:  #FDE68A;
+  --low:         #059669;
+  --low-bg:      #ECFDF5;
+  --low-border:  #A7F3D0;
+  --info:        #0284C7;
+  --info-bg:     #F0F9FF;
+  --info-border: #BAE6FD;
+
+  --radius:   10px;
+  --radius-lg:16px;
+  --shadow:   0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+}
+
+/* ─── RESET ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+/* ─── LAYOUT ─────────────────────────────────────────── */
+.app-shell {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+/* ─── TOPBAR ─────────────────────────────────────────── */
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-icon svg { width:18px; height:18px; }
+.logo-text {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.logo-badge {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+.topbar-spacer { flex: 1; }
+.topbar-note {
+  font-size: 12px;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ─── SIDEBAR ────────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+}
+
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+/* Target input */
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.target-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-2);
+  border-radius: var(--radius);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.target-input::placeholder { color: var(--text-3); }
+.target-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
+/* Options checkboxes */
+.options-grid { display: flex; flex-direction: column; gap: 8px; }
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  user-select: none;
+}
+.option-item:hover { border-color: var(--accent); background: var(--accent-light); }
+.option-item input[type=checkbox] {
+  width: 15px; height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.option-text { flex: 1; }
+.option-name { font-weight: 500; font-size: 13px; }
+.option-desc { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+/* Scan button */
+.scan-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+}
+.scan-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 14px rgba(37,99,235,.35);
+  transform: translateY(-1px);
+}
+.scan-btn:disabled {
+  background: var(--border-2);
+  color: var(--text-3);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.scan-btn .spinner {
+  width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+.scanning .scan-btn .spinner { display: block; }
+
+/* Quick targets */
+.quick-targets { display: flex; flex-direction: column; gap: 5px; }
+.quick-target {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  background: var(--bg);
+  transition: all .13s;
+  text-align: left;
+}
+.quick-target:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* ─── MAIN ───────────────────────────────────────────── */
+.main {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+  height: calc(100vh - 60px);
+}
+
+/* Empty state */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--text-3);
+}
+.empty-icon {
+  width: 64px; height: 64px;
+  background: var(--surface-2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-icon svg { width:32px; height:32px; opacity:.4; }
+.empty-title { font-size: 16px; font-weight: 600; color: var(--text-2); }
+.empty-sub   { font-size: 13px; max-width: 300px; }
+
+/* Progress bar */
+.progress-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  display: none;
+}
+.progress-card.visible { display: block; }
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.progress-label { font-weight: 600; font-size: 13.5px; }
+.progress-pct   { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); font-weight: 500; }
+.progress-bar-track {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width .4s ease;
+  width: 0%;
+}
+.progress-status { margin-top: 10px; font-size: 12px; color: var(--text-3); }
+
+/* Summary cards */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  display: none;
+}
+.summary-grid.visible { display: grid; }
+.summary-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.summary-card.crit  { border-color: var(--crit-border);  background: var(--crit-bg);  }
+.summary-card.high  { border-color: var(--high-border);  background: var(--high-bg);  }
+.summary-card.med   { border-color: var(--med-border);   background: var(--med-bg);   }
+.summary-card.low   { border-color: var(--low-border);   background: var(--low-bg);   }
+.summary-card.info  { border-color: var(--info-border);  background: var(--info-bg);  }
+.summary-count { font-size: 28px; font-weight: 700; line-height: 1; }
+.summary-card.crit .summary-count { color: var(--crit); }
+.summary-card.high .summary-count { color: var(--high); }
+.summary-card.med  .summary-count { color: var(--med);  }
+.summary-card.low  .summary-count { color: var(--low);  }
+.summary-card.info .summary-count { color: var(--info); }
+.summary-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); margin-top: 4px; }
+
+/* Result panels */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: none;
+}
+.panel.visible { display: block; }
+.panel-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+}
+.panel-icon {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.panel-icon svg { width: 14px; height: 14px; }
+.panel-title { font-weight: 600; font-size: 13.5px; }
+.panel-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-2);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.panel-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+/* Port rows */
+.port-row {
+  display: grid;
+  grid-template-columns: 70px 100px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  animation: slideIn .25s ease;
+}
+.port-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.port-service {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.port-info {}
+.port-desc { font-size: 12px; color: var(--text-2); }
+.port-banner {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 3px;
+  word-break: break-all;
+}
+.port-note {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Severity badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-CRITICAL { background: var(--crit-bg);  color: var(--crit); border: 1px solid var(--crit-border); }
+.badge-HIGH     { background: var(--high-bg);  color: var(--high); border: 1px solid var(--high-border); }
+.badge-MEDIUM   { background: var(--med-bg);   color: var(--med);  border: 1px solid var(--med-border);  }
+.badge-LOW      { background: var(--low-bg);   color: var(--low);  border: 1px solid var(--low-border);  }
+.badge-INFO     { background: var(--info-bg);  color: var(--info); border: 1px solid var(--info-border); }
+
+/* SSL card */
+.ssl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ssl-item {
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.ssl-key   { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-3); }
+.ssl-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: var(--text); margin-top: 5px; }
+.ssl-issues { display: flex; flex-direction: column; gap: 6px; }
+
+/* Headers */
+.headers-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.hdr-section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .6px; color: var(--text-3); margin-bottom: 8px;
+}
+.hdr-present-item, .hdr-missing-item {
+  padding: 8px 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.hdr-present-item { background: var(--low-bg); border: 1px solid var(--low-border); }
+.hdr-present-name { font-weight: 600; color: var(--low); }
+.hdr-present-val  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); margin-top: 2px; word-break: break-all; }
+.hdr-missing-item { background: var(--crit-bg); border: 1px solid var(--crit-border); display: flex; align-items: center; justify-content: space-between; }
+.hdr-missing-name { font-weight: 600; color: var(--crit); }
+
+/* Paths */
+.path-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  animation: slideIn .25s ease;
+}
+.path-url  { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; flex: 1; }
+.path-desc { font-size: 11.5px; color: var(--text-3); }
+
+/* Report download */
+.report-actions {
+  display: flex;
+  gap: 10px;
+  display: none;
+}
+.report-actions.visible { display: flex; }
+.btn-secondary {
+  padding: 9px 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-2);
+  border-radius: var(--radius);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: all .13s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.btn-primary {
+  padding: 9px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: background .13s;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+/* Error toast */
+.error-banner {
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-border);
+  color: var(--crit);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.error-banner.visible { display: flex; }
+
+/* No auth row */
+.info-row {
+  padding: 10px 14px;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  color: var(--info);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Divider */
+.sidebar-divider { height: 1px; background: var(--border); }
+
+/* Animations */
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes slideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+/* ─── RESPONSIVE ─────────────────────────────────────── */
+@media (max-width: 860px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .main    { height: auto; }
+  .ssl-grid, .headers-wrap { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: repeat(3,1fr); }
+  .port-row { grid-template-columns: 60px 90px 1fr; }
+  .port-row .badge { grid-column: 2; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <span class="logo-text">VulnProbe</span>
+    <span class="logo-badge">Beta</span>
+    <span class="topbar-spacer"></span>
+    <span class="topbar-note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      For educational &amp; authorised use only
+    </span>
+  </header>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <!-- Target -->
+    <div>
+      <div class="sidebar-section-label">Target</div>
+      <div class="input-group">
+        <label class="input-label" for="targetInput">Host / URL</label>
+        <input id="targetInput" class="target-input"
+               type="text" placeholder="e.g. scanme.nmap.org"
+               autocomplete="off" spellcheck="false" />
+      </div>
+    </div>
+
+    <!-- Quick targets -->
+    <div>
+      <div class="sidebar-section-label">Quick Targets</div>
+      <div class="quick-targets">
+        <button class="quick-target" onclick="setTarget('scanme.nmap.org')">scanme.nmap.org</button>
+        <button class="quick-target" onclick="setTarget('testphp.vulnweb.com')">testphp.vulnweb.com</button>
+        <button class="quick-target" onclick="setTarget('httpbin.org')">httpbin.org</button>
+        <button class="quick-target" onclick="setTarget('example.com')">example.com</button>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Scan options -->
+    <div>
+      <div class="sidebar-section-label">Scan Modules</div>
+      <div class="options-grid">
+        <label class="option-item">
+          <input type="checkbox" id="optPorts" checked />
+          <div class="option-text">
+            <div class="option-name">Port Scanner</div>
+            <div class="option-desc">18 common service ports</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optSSL" checked />
+          <div class="option-text">
+            <div class="option-name">TLS / SSL</div>
+            <div class="option-desc">Cert validity &amp; cipher</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optHeaders" checked />
+          <div class="option-text">
+            <div class="option-name">HTTP Headers</div>
+            <div class="option-desc">Security header audit</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optPaths" checked />
+          <div class="option-text">
+            <div class="option-name">Path Probe</div>
+            <div class="option-desc">Sensitive file exposure</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Scan button -->
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">
+      <div class="spinner"></div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="scanIcon">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <span id="scanBtnLabel">Run Scan</span>
+    </button>
+
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main" id="mainArea">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div class="empty-title">No scan results yet</div>
+      <div class="empty-sub">Enter a hostname and click Run Scan to begin vulnerability assessment.</div>
+    </div>
+
+    <!-- Error banner -->
+    <div class="error-banner" id="errorBanner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorText"></span>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-card" id="progressCard">
+      <div class="progress-header">
+        <span class="progress-label" id="progressLabel">Initialising…</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-status" id="progressStatus">Starting scan…</div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-grid" id="summaryGrid">
+      <div class="summary-card crit"><div class="summary-count" id="sCrit">0</div><div class="summary-label">Critical</div></div>
+      <div class="summary-card high"><div class="summary-count" id="sHigh">0</div><div class="summary-label">High</div></div>
+      <div class="summary-card med" ><div class="summary-count" id="sMed">0</div> <div class="summary-label">Medium</div></div>
+      <div class="summary-card low" ><div class="summary-count" id="sLow">0</div> <div class="summary-label">Low</div></div>
+      <div class="summary-card info"><div class="summary-count" id="sInfo">0</div><div class="summary-label">Info</div></div>
+    </div>
+
+    <!-- Open Ports Panel -->
+    <div class="panel" id="portsPanel">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:#EFF6FF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <span class="panel-title">Open Ports</span>
+        <span class="panel-count" id="portsCount">0</span>
+      </div>
+      <div class="panel-body" id="portsBody"></div>
+    </div>
+
+    <!-- SSL Panel -->
+    <div class="panel" id="sslPanel">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:#ECFDF5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2" stroke-linecap="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <span class="panel-title">TLS / SSL Certificate</span>
+      </div>
+      <div class="panel-body" id="sslBody"></div>
+    </div>
+
+    <!-- HTTP Headers Panel -->
+    <div class="panel" id="headersPanel">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:#FFF7ED">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2.2" stroke-linecap="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+        <span class="panel-title">HTTP Security Headers</span>
+        <span class="panel-count" id="headersCount"></span>
+      </div>
+      <div class="panel-body" id="headersBody"></div>
+    </div>
+
+    <!-- Paths Panel -->
+    <div class="panel" id="pathsPanel">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:#FEF2F2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round">
+            <path d="M20 11.08V8l-6-6H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h6"/><path d="M14 3v5h5"/><circle cx="19" cy="19" r="3"/><path d="M19 17v2l1 1"/>
+          </svg>
+        </div>
+        <span class="panel-title">Sensitive Path Exposure</span>
+        <span class="panel-count" id="pathsCount">0</span>
+      </div>
+      <div class="panel-body" id="pathsBody"></div>
+    </div>
+
+    <!-- Report Actions -->
+    <div class="report-actions" id="reportActions">
+      <button class="btn-secondary" onclick="downloadJSON()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export JSON
+      </button>
+      <button class="btn-primary" onclick="downloadReport()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Download Report
+      </button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ── State ── */
+let reportData   = null;
+let evtSource    = null;
+let openPortCount = 0;
+
+/* ── Utils ── */
+const $  = id => document.getElementById(id);
+const cls = (el, ...c) => typeof el === 'string' ? $(el).classList : el.classList;
+
+function show(id)  { $(id).classList.add('visible');    }
+function hide(id)  { $(id).classList.remove('visible'); }
+function setTarget(t) { $('targetInput').value = t; $('targetInput').focus(); }
+
+function badgeHtml(sev) {
+  return `<span class="badge badge-${sev}">${sev}</span>`;
+}
+
+/* ── Scan ── */
+function startScan() {
+  const target = $('targetInput').value.trim();
+  if (!target) {
+    $('targetInput').focus();
+    $('targetInput').style.borderColor = 'var(--crit)';
+    setTimeout(() => $('targetInput').style.borderColor = '', 1500);
+    return;
+  }
+
+  if (evtSource) { evtSource.close(); evtSource = null; }
+
+  /* Reset UI */
+  hide('emptyState'); hide('errorBanner');
+  hide('summaryGrid'); hide('portsPanel'); hide('sslPanel');
+  hide('headersPanel'); hide('pathsPanel'); hide('reportActions');
+  $('portsBody').innerHTML = '';
+  $('sslBody').innerHTML   = '';
+  $('headersBody').innerHTML = '';
+  $('pathsBody').innerHTML = '';
+  reportData = null; openPortCount = 0;
+  $('portsCount').textContent = '0';
+  $('pathsCount').textContent = '0';
+  ['sCrit','sHigh','sMed','sLow','sInfo'].forEach(id => $(id).textContent = '0');
+
+  /* Progress */
+  setProgress(0, 'Connecting…');
+  show('progressCard');
+
+  /* Scanning state */
+  document.querySelector('.scan-btn').disabled = true;
+  document.getElementById('appShell').classList.add('scanning');
+  $('scanIcon').style.display = 'none';
+  $('scanBtnLabel').textContent = 'Scanning…';
+
+  const params = new URLSearchParams({
+    target,
+    ports:   $('optPorts').checked,
+    ssl:     $('optSSL').checked,
+    headers: $('optHeaders').checked,
+    paths:   $('optPaths').checked,
+  });
+
+  evtSource = new EventSource(`/scan?${params}`);
+
+  evtSource.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    handleEvent(msg);
+  };
+
+  evtSource.onerror = () => {
+    evtSource.close();
+    scanDone();
+    showError('Connection lost. Is the Flask server running?');
+  };
+}
+
+function handleEvent(msg) {
+  switch (msg.type) {
+
+    case 'status':
+      setProgress(msg.progress, msg.message);
+      break;
+
+    case 'error':
+      scanDone();
+      showError(msg.message);
+      break;
+
+    case 'port_found':
+      renderPort(msg);
+      openPortCount++;
+      $('portsCount').textContent = openPortCount;
+      show('portsPanel');
+      break;
+
+    case 'ssl_result':
+      renderSSL(msg);
+      show('sslPanel');
+      break;
+
+    case 'headers_result':
+      renderHeaders(msg);
+      show('headersPanel');
+      break;
+
+    case 'paths_result':
+      if (msg.paths && msg.paths.length > 0) {
+        renderPaths(msg.paths);
+        show('pathsPanel');
+      }
+      break;
+
+    case 'done':
+      reportData = msg.report;
+      renderSummary(msg.report.summary);
+      scanDone();
+      evtSource.close();
+      show('reportActions');
+      break;
+  }
+}
+
+function setProgress(pct, label) {
+  $('progressFill').style.width = pct + '%';
+  $('progressPct').textContent  = pct + '%';
+  $('progressStatus').textContent = label;
+  if (pct === 100) $('progressLabel').textContent = 'Scan Complete';
+}
+
+function scanDone() {
+  document.querySelector('.scan-btn').disabled = false;
+  document.getElementById('appShell').classList.remove('scanning');
+  $('scanIcon').style.display = '';
+  $('scanBtnLabel').textContent = 'Run Scan';
+}
+
+function showError(msg) {
+  $('errorText').textContent = msg;
+  show('errorBanner');
+  hide('progressCard');
+}
+
+/* ── Renderers ── */
+function renderPort(p) {
+  const bannerHtml = p.banner && p.banner !== '—'
+    ? `<div class="port-banner">↳ ${esc(p.banner)}</div>` : '';
+  const div = document.createElement('div');
+  div.className = 'port-row';
+  div.innerHTML = `
+    <div class="port-num">:${p.port}</div>
+    <div class="port-service">${esc(p.service)}</div>
+    <div class="port-info">
+      <div class="port-desc">${esc(p.description)}</div>
+      ${bannerHtml}
+      <div class="port-note">${esc(p.risk_note)}</div>
+    </div>
+    ${badgeHtml(p.severity)}
+  `;
+  $('portsBody').appendChild(div);
+}
+
+function renderSSL(s) {
+  if (!s.enabled) {
+    $('sslBody').innerHTML = `<div class="info-row">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      No HTTPS / TLS service detected on port 443.</div>`;
+    return;
+  }
+  const expiryColor = s.days_left < 30 ? 'var(--crit)' : s.days_left < 90 ? 'var(--med)' : 'var(--low)';
+  const daysHtml = s.days_left != null
+    ? `<span style="color:${expiryColor};font-weight:600">${s.days_left}d left</span>` : '—';
+
+  $('sslBody').innerHTML = `
+    <div class="ssl-grid">
+      <div class="ssl-item"><div class="ssl-key">Version</div><div class="ssl-value">${esc(s.version||'—')}</div></div>
+      <div class="ssl-item"><div class="ssl-key">Expires</div><div class="ssl-value">${esc(s.expiry||'—')} ${daysHtml}</div></div>
+      <div class="ssl-item"><div class="ssl-key">Cipher</div><div class="ssl-value">${esc(s.cipher||'—')}</div></div>
+    </div>
+    ${s.issues.length ? `<div class="ssl-issues">${s.issues.map(i =>
+      `<div class="path-item">${badgeHtml('HIGH')}<span>${esc(i)}</span></div>`).join('')}</div>`
+    : `<div class="info-row" style="color:var(--low);border-color:var(--low-border);background:var(--low-bg)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Certificate looks healthy — no issues detected.</div>`}
+  `;
+}
+
+function renderHeaders(h) {
+  if (!h.reachable) {
+    $('headersBody').innerHTML = `<div class="info-row">Host not reachable over HTTP.</div>`;
+    return;
+  }
+  const miss = h.missing_headers || [];
+  const pres = h.present_headers || [];
+  $('headersCount').textContent = `${miss.length} missing`;
+
+  const missHtml = miss.length
+    ? miss.map(m => `<div class="hdr-missing-item">
+        <span class="hdr-missing-name">${esc(m.name)}</span>${badgeHtml(m.severity)}</div>`).join('')
+    : `<div style="font-size:12px;color:var(--low)">All security headers present ✓</div>`;
+
+  const presHtml = pres.length
+    ? pres.map(p => `<div class="hdr-present-item">
+        <div class="hdr-present-name">${esc(p.name)}</div>
+        <div class="hdr-present-val">${esc(p.value)}</div></div>`).join('')
+    : `<div style="font-size:12px;color:var(--text-3)">None detected.</div>`;
+
+  $('headersBody').innerHTML = `
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">
+      Server: <strong style="color:var(--text)">${esc(h.server||'—')}</strong>
+      ${h.powered_by ? ` &nbsp;·&nbsp; X-Powered-By: <strong style="color:var(--crit)">${esc(h.powered_by)}</strong>` : ''}
+      &nbsp;·&nbsp; Status: <strong>${h.status_code}</strong>
+    </div>
+    <div class="headers-wrap">
+      <div>
+        <div class="hdr-section-title">Missing Headers</div>
+        ${missHtml}
+      </div>
+      <div>
+        <div class="hdr-section-title">Present Headers</div>
+        ${presHtml}
+      </div>
+    </div>`;
+}
+
+function renderPaths(paths) {
+  $('pathsCount').textContent = paths.length;
+  $('pathsBody').innerHTML = paths.map(p => `
+    <div class="path-item">
+      ${badgeHtml(p.severity)}
+      <span class="path-url">${esc(p.path)}</span>
+      <span class="path-desc">${esc(p.description)} &nbsp;[${p.status}]</span>
+    </div>`).join('');
+}
+
+function renderSummary(s) {
+  $('sCrit').textContent = s.critical || 0;
+  $('sHigh').textContent = s.high     || 0;
+  $('sMed').textContent  = s.medium   || 0;
+  $('sLow').textContent  = s.low      || 0;
+  $('sInfo').textContent = s.info     || 0;
+  show('summaryGrid');
+}
+
+/* ── Export ── */
+function downloadJSON() {
+  if (!reportData) return;
+  const blob = new Blob([JSON.stringify(reportData, null, 2)], {type:'application/json'});
+  triggerDownload(blob, `vulnprobe_${reportData.host}_${ts()}.json`);
+}
+
+function downloadReport() {
+  if (!reportData) return;
+  const r = reportData;
+  const lines = [
+    '╔══════════════════════════════════════════════════════╗',
+    '║           VULNPROBE — VULNERABILITY REPORT           ║',
+    '╚══════════════════════════════════════════════════════╝',
+    '',
+    `Target    : ${r.host}  (${r.ip})`,
+    `Scan Time : ${r.scan_time}`,
+    '',
+    '── SUMMARY ──────────────────────────────────────────────',
+    `  CRITICAL : ${r.summary.critical}`,
+    `  HIGH     : ${r.summary.high}`,
+    `  MEDIUM   : ${r.summary.medium}`,
+    `  LOW      : ${r.summary.low}`,
+    '',
+    '── OPEN PORTS ───────────────────────────────────────────',
+    ...(r.open_ports.length
+      ? r.open_ports.map(p => `  [${p.severity.padEnd(8)}] :${String(p.port).padEnd(6)} ${p.service.padEnd(14)} ${p.description}`)
+      : ['  None detected.']),
+    '',
+    '── SSL / TLS ─────────────────────────────────────────────',
+    r.ssl.enabled
+      ? [`  Version : ${r.ssl.version||'—'}`,
+         `  Expiry  : ${r.ssl.expiry||'—'} (${r.ssl.days_left} days left)`,
+         `  Issues  : ${r.ssl.issues.length ? r.ssl.issues.join('; ') : 'None'}`,
+        ].join('\n')
+      : '  HTTPS not detected.',
+    '',
+    '── VULNERABILITIES ──────────────────────────────────────',
+    ...(r.vulnerabilities.length
+      ? r.vulnerabilities.map((v,i) => `  ${String(i+1).padStart(2)}. [${v.severity.padEnd(8)}] ${v.type}: ${v.detail}`)
+      : ['  No vulnerabilities detected.']),
+    '',
+    '── SENSITIVE PATHS ──────────────────────────────────────',
+    ...(r.sensitive_paths.length
+      ? r.sensitive_paths.map(p => `  [${p.severity.padEnd(8)}] ${p.path}  — ${p.description}`)
+      : ['  No exposed paths found.']),
+    '',
+    '─────────────────────────────────────────────────────────',
+    'Report generated by VulnProbe. For authorised use only.',
+  ];
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  triggerDownload(blob, `vulnprobe_${r.host}_${ts()}.txt`);
+}
+
+function triggerDownload(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
+
+function ts() {
+  return new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* Enter key */
+document.getElementById('targetInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+</script>
+</body>
+</html>
